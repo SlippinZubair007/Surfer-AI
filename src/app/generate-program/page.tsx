@@ -7,11 +7,19 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+type Message = {
+  type?: string;
+  transcript?: string;
+  transcriptType?: string;
+  role?: string;
+  content?: string;
+};
+
 const GenerateProgramPage = () => {
   const [callActive, setCallActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [callEnded, setCallEnded] = useState(false);
 
   const { user } = useUser();
@@ -19,10 +27,9 @@ const GenerateProgramPage = () => {
 
   const messageContainerRef = useRef<HTMLDivElement>(null);
 
-  // SOLUTION to get rid of "Meeting has ended" error
+  // Ignore known "Meeting has ended" error
   useEffect(() => {
     const originalError = console.error;
-    // override console.error to ignore "Meeting has ended" errors
     console.error = function (msg, ...args) {
       if (
         msg &&
@@ -30,48 +37,40 @@ const GenerateProgramPage = () => {
           (args[0] && args[0].toString().includes("Meeting has ended")))
       ) {
         console.log("Ignoring known error: Meeting has ended");
-        return; // don't pass to original handler
+        return;
       }
-
-      // pass all other errors to the original handler
       return originalError.call(console, msg, ...args);
     };
-
-    // restore original handler on unmount
     return () => {
       console.error = originalError;
     };
   }, []);
 
-  // auto-scroll messages
+  // Auto-scroll
   useEffect(() => {
     if (messageContainerRef.current) {
       messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // navigate user to profile page after the call ends
+  // Redirect to profile
   useEffect(() => {
     if (callEnded) {
       const redirectTimer = setTimeout(() => {
         router.push("/profile");
       }, 1500);
-
       return () => clearTimeout(redirectTimer);
     }
   }, [callEnded, router]);
 
-  // setup event listeners for vapi
   useEffect(() => {
     const handleCallStart = () => {
-      console.log("Call started");
       setConnecting(false);
       setCallActive(true);
       setCallEnded(false);
     };
 
     const handleCallEnd = () => {
-      console.log("Call ended");
       setCallActive(false);
       setConnecting(false);
       setIsSpeaking(false);
@@ -79,22 +78,21 @@ const GenerateProgramPage = () => {
     };
 
     const handleSpeechStart = () => {
-      console.log("AI started Speaking");
       setIsSpeaking(true);
     };
 
     const handleSpeechEnd = () => {
-      console.log("AI stopped Speaking");
       setIsSpeaking(false);
     };
-    const handleMessage = (message: any) => {
+
+    const handleMessage = (message: Message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
         const newMessage = { content: message.transcript, role: message.role };
         setMessages((prev) => [...prev, newMessage]);
       }
     };
 
-    const handleError = (error: any) => {
+    const handleError = (error: unknown) => {
       console.log("Vapi Error", error);
       setConnecting(false);
       setCallActive(false);
@@ -108,7 +106,6 @@ const GenerateProgramPage = () => {
       .on("message", handleMessage)
       .on("error", handleError);
 
-    // cleanup event listeners on unmount
     return () => {
       vapi
         .off("call-start", handleCallStart)
@@ -121,8 +118,9 @@ const GenerateProgramPage = () => {
   }, []);
 
   const toggleCall = async () => {
-    if (callActive) vapi.stop();
-    else {
+    if (callActive) {
+      vapi.stop();
+    } else {
       try {
         setConnecting(true);
         setMessages([]);
