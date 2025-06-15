@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { api } from '../../../convex/_generated/api';
 import ProfileHeader from '@/components/ProfileHeader';
 import NoFitnessPlan from '@/components/NoFitnessPlan';
-import { AppleIcon, Calendar1Icon, CalendarIcon,DumbbellIcon } from 'lucide-react';
+import { AppleIcon, CalendarIcon,DumbbellIcon } from 'lucide-react';
 import CornerElements from '@/components/CornerElements';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
